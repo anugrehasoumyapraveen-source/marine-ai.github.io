@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>🌊 Marine AI Tactical Monitor</title>
+
+    <style>
+
+        body {
+
+            background: #000b1a;
+
+            color: #00d4ff;
+
+            font-family: 'Courier New', Courier, monospace;
+
+            text-align: center;
+
+            padding: 20px;
+
+        }
+
+
+
+        .hud-container {
+
+            border: 2px solid #00d4ff;
+
+            padding: 20px;
+
+            display: inline-block;
+
+            background: rgba(0, 212, 255, 0.05);
+
+            border-radius: 15px;
+
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+
+        }
+
+
+
+        #webcam-container canvas {
+
+            border: 3px solid #00d4ff;
+
+            border-radius: 10px;
+
+            margin-bottom: 15px;
+
+        }
+
+
+
+        /* Tactical Alert Bar Styles */
+
+        #alert-bar {
+
+            width: 80%;
+
+            margin: 20px auto;
+
+            height: 50px;
+
+            line-height: 50px;
+
+            font-size: 1.5em;
+
+            font-weight: bold;
+
+            border-radius: 5px;
+
+            overflow: hidden;
+
+            display: none; /* Hidden until analysis starts */
+
+        }
+
+
+
+        /* Alert Colors */
+
+        .alert-red { background: #7a0000; color: #ff0000; border: 2px solid #ff0000; }
+
+        .alert-yellow { background: #7a7a00; color: #ffff00; border: 2px solid #ffff00; }
+
+        .alert-green { background: #004d00; color: #00ff00; border: 2px solid #00ff00; }
+
+
+
+        button {
+
+            background: #00d4ff;
+
+            color: #000;
+
+            border: none;
+
+            padding: 10px 25px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+            margin: 5px;
+
+            border-radius: 5px;
+
+        }
+
+
+
+        button:hover { background: #fff; }
+
+
+
+        #label-container {
+
+            margin: 15px;
+
+            font-size: 1.1em;
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+    <h1>🔱 AquaDex - MARINE TACTICAL INTERFACE</h1>
+
+
+
+    <div class="hud-container">
+
+        <button type="button" onclick="init()">POWER ON SENSORS</button>
+
+        <button type="button" onclick="predictOnce()" id="scanBtn" disabled>RUN PATH ANALYSIS</button>
+
+        
+
+        <div id="webcam-container"></div>
+
+        <div id="label-container"></div>
+
+    </div>
+
+
+
+    <div id="alert-bar"></div>
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+
+
+    <script type="text/javascript">
+
+        // 🚨 REPLACE THIS WITH YOUR LINK
+
+        const URL = "https://teachablemachine.withgoogle.com/models/MWUrDU3Nu/";
+
+
+
+        let model, webcam, labelContainer, maxPredictions;
+
+
+
+        async function init() {
+
+            const modelURL = URL + "model.json";
+
+            const metadataURL = URL + "metadata.json";
+
+
+
+            model = await tmImage.load(modelURL, metadataURL);
+
+            maxPredictions = model.getTotalClasses();
+
+
+
+            webcam = new tmImage.Webcam(250, 250, true);
+
+            await webcam.setup();
+
+            await webcam.play();
+
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+
+
+            labelContainer = document.getElementById("label-container");
+
+            for (let i = 0; i < maxPredictions; i++) {
+
+                labelContainer.appendChild(document.createElement("div"));
+
+            }
+
+            document.getElementById("scanBtn").disabled = false;
+
+        }
+
+
+
+        async function predictOnce() {
+
+            await webcam.update();
+
+            const prediction = await model.predict(webcam.canvas);
+
+            
+
+            let topClass = "";
+
+            let topProb = 0;
+
+
+
+            for (let i = 0; i < maxPredictions; i++) {
+
+                labelContainer.childNodes[i].innerHTML = 
+
+                    prediction[i].className + ": " + (prediction[i].probability * 100).toFixed(0) + "%";
+
+                
+
+                if(prediction[i].probability > topProb) {
+
+                    topProb = prediction[i].probability;
+
+                    topClass = prediction[i].className;
+
+                }
+
+            }
+
+
+
+            updateAlert(topClass);
+
+        }
+
+
+
+        function updateAlert(className) {
+
+            const bar = document.getElementById("alert-bar");
+
+            bar.style.display = "block";
+
+            let msg = "";
+
+            let style = "";
+
+
+
+            // Mapping your 4 classes to alerts
+
+            switch(className) {
+
+                case "Large Marine Life":
+
+                    msg = "🚨 DANGER: LARGE ORGANISM DETECTED - COLLISION RISK HIGH - STOP ENGINES 🚨";
+
+                    style = "alert-red";
+
+                    break;
+
+                case "Sensitive Corals":
+
+                    msg = "🪸 ALERT: SENSITIVE CORAL REEF - STEER CAREFULLY - CHECK BUOYANCY 🪸";
+
+                    style = "alert-red";
+
+                    break;
+
+                case "Small/Medium Marine Life":
+
+                    msg = "⚠️ CAUTION: LOCAL BIOTA DETECTED - PROCEED WITH AWARENESS ⚠️";
+
+                    style = "alert-yellow";
+
+                    break;
+
+                case "Clear Water":
+
+                    msg = "🌊 STATUS: CLEAR WATER - NAVIGATION SAFE - PROCEED AT MISSION SPEED 🌊";
+
+                    style = "alert-green";
+
+                    break;
+
+                default:
+
+                    msg = "SCANNING...";
+
+                    style = "alert-green";
+
+            }
+
+
+
+            // Creating the scrolling effect
+
+            bar.className = style;
+
+            bar.innerHTML = `<marquee scrollamount="10">${msg}</marquee>`;
+
+        }
+
+    </script>
+
+</body>
+
+</html>
